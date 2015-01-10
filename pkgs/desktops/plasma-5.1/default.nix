@@ -5,7 +5,6 @@ with stdenv.lib; with autonix;
 
 let
 
-  packagesOrig = importPackages ./. { mirror = "mirror://kde"; };
   packages =
     fold (f: x: f x)
       (importPackages ./. { mirror = "mirror://kde"; })
