@@ -41,7 +41,7 @@ let
   mergeAttrsByFuncDefaultsClean = list: removeAttrs (mergeAttrsByFuncDefaults list) ["mergeAttrBy"];
 
   importManifest = callPackage ./import-manifest.nix {
-    inherit pkgAttrName;
+    inherit pkgAttrName pkgVersion;
   };
 
   callAutonixPackage = callPackage ./call-autonix-package.nix {};

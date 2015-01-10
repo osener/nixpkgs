@@ -1,4 +1,4 @@
-{ stdenv, pkgAttrName }:
+{ stdenv, pkgAttrName, pkgVersion }:
 
 with stdenv.lib;
 
