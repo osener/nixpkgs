@@ -63,6 +63,11 @@ let
 
   removePkgs = names: filterAttrs (n: v: !(builtins.elem n names));
 
+  hasDep = dep: pkg:
+    let depAttrs = attrValues (filterAttrs (n: v: isDepAttr n) pkg);
+        allDeps = concatLists depAttrs;
+    in elem dep allDeps;
+
 in
 {
   inherit pkgNameVersion pkgAttrName;
@@ -70,7 +75,7 @@ in
   inherit callAutonixPackage;
   inherit importManifest;
   inherit mkDerivation;
-  inherit depAttrNames isDepAttr;
+  inherit depAttrNames isDepAttr hasDep;
   inherit removePkgDeps removeDeps removePkgs;
 
   writeManifestXML = callPackage ./write-manifest-xml.nix {

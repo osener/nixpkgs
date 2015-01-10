@@ -5,14 +5,48 @@ with stdenv.lib; with autonix;
 
 let
 
+  isQt45Pkg = pkg: hasDep "qt4" pkg && hasDep "qt5" pkg;
+  mkQt4Pkg = pkg:
+    let qt5Deps = [ "qt5" ] ++ attrNames kf5 ++ attrNames plasma5;
+        name = builtins.parseDrvName pkg.name;
+    in (removePkgDeps qt5Deps pkg) // {
+      name = name.name + "-qt4-" + name.version;
+    };
+  mkQt5Pkg = pkg:
+    let qt4Deps = [ "qt4" ];
+        name = builtins.parseDrvName pkg.name;
+    in (removePkgDeps qt4Deps pkg) // {
+      name = name.name + "-qt5-" + name.version;
+    };
+  splitQt45Pkgs = pkgs:
+    let pkgNames = attrNames pkgs;
+        go = name: set:
+          let pkg = pkgs."${name}"; in
+          if !(isQt45Pkg pkg)
+            then set // { "${name}" = pkg; }
+            else set // {
+              "${name}-qt4" = mkQt4Pkg pkg;
+              "${name}-qt5" = mkQt5Pkg pkg;
+            };
+    in fold go {} pkgNames;
+
+  removeAttr = name: filterAttrs (n: x: n != name);
+
+  splitBreeze = pkgs: (removeAttr "breeze" pkgs) // {
+    breeze-qt4 = mkQt4Pkg pkgs.breeze;
+    breeze-qt5 = mkQt5Pkg pkgs.breeze;
+  };
+
   packages =
     fold (f: x: f x)
       (importPackages ./. { mirror = "mirror://kde"; })
-      [ (removeDeps [ "kf5" "kde4" ])
+      [ splitBreeze
+        splitQt45Pkgs
+        (removeDeps [ "kf5" "kde4" ])
         (blacklist [ "kwayland" ])
-        # Automatic dependencies for breeze inferere with building Qt4 and Qt5
-        # styles separately.
-        (deps: deps // { breeze = deps.breeze // emptyDeps; })
+        (pkgs: pkgs // { plasma-desktop = removePkgDeps [ "qt4" ] pkgs.plasma-desktop; })
+        (pkgs: pkgs // { libmm-qt = removePkgDeps [ "qt4" ] pkgs.libmm-qt; })
+        (pkgs: pkgs // { libnm-qt = removePkgDeps [ "qt4" ] pkgs.libnm-qt; })
       ];
 
   kf5 = kf55.override { inherit debug; };
@@ -23,9 +57,6 @@ let
   extraOutputs = {
     inherit kf5 qt5;
     poppler_qt5 = (pkgs.poppler.override { inherit qt5; }).poppler_qt5;
-    breeze_qt4 = plasma5.dev.callAutonixPackage ./. "breeze" {
-      withQt5 = false;
-    };
     startkde = plasma5.dev.callPackage ./startkde {};
   };
 
@@ -51,6 +82,11 @@ let
   };
 
   overrides = {
+    breeze-qt4 = {
+      buildInputs = [ pkgs.xlibs.xproto kde4.kdelibs qt4 ];
+      nativeBuildInputs = with pkgs; [ cmake pkgconfig ];
+      cmakeFlags = [ "-DUSE_KDE4=ON" ];
+    };
     frameworkintegration = {
       buildInputs = [ plasma5.oxygen-fonts ];
     };
