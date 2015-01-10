@@ -78,6 +78,9 @@ rec {
   filterAttrs = pred: set:
     listToAttrs (fold (n: ys: let v = set.${n}; in if pred n v then [(nameValuePair n v)] ++ ys else ys) [] (attrNames set));
 
+  /* Remove the named attribute from an attribute set. */
+  removeAttr = name: filterAttrs (n: x: n != name);
+
 
   /* foldAttrs: apply fold functions to values grouped by key. Eg accumulate values as list:
      foldAttrs (n: a: [n] ++ a) [] [{ a = 2; } { a = 3; }]

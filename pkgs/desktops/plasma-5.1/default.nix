@@ -30,8 +30,6 @@ let
             };
     in fold go {} pkgNames;
 
-  removeAttr = name: filterAttrs (n: x: n != name);
-
   splitBreeze = pkgs: (removeAttr "breeze" pkgs) // {
     breeze-qt4 = mkQt4Pkg pkgs.breeze;
     breeze-qt5 = mkQt5Pkg pkgs.breeze;
