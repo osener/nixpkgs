@@ -9,8 +9,8 @@ let
   packages =
     fold (f: x: f x)
       (importPackages ./. { mirror = "mirror://kde"; })
-      [ (removePkgs [ "kwayland" ])
-        (removeDeps [ "kwayland" "kf5" "kde4" ])
+      [ (removeDeps [ "kf5" "kde4" ])
+        (blacklist [ "kwayland" ])
         # Automatic dependencies for breeze inferere with building Qt4 and Qt5
         # styles separately.
         (deps: deps // { breeze = deps.breeze // emptyDeps; })

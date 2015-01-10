@@ -54,6 +54,15 @@ let
 
   isDepAttr = name: builtins.elem name depAttrNames;
 
+  removePkgDeps = deps:
+    let removeDepsIfDepAttr = attr: value:
+          if isDepAttr attr then fold remove value deps else value;
+    in mapAttrs removeDepsIfDepAttr;
+
+  removeDeps = deps: mapAttrs (pkg: removePkgDeps deps);
+
+  removePkgs = names: filterAttrs (n: v: !(builtins.elem n names));
+
 in
 {
   inherit pkgNameVersion pkgAttrName;
@@ -62,13 +71,13 @@ in
   inherit importManifest;
   inherit mkDerivation;
   inherit depAttrNames isDepAttr;
+  inherit removePkgDeps removeDeps removePkgs;
 
   writeManifestXML = callPackage ./write-manifest-xml.nix {
     inherit importManifest;
   };
 
-  removeDeps = callPackage ./remove-deps.nix { inherit isDepAttr; };
-  removePkgs = names: filterAttrs (n: v: !(builtins.elem n names));
+  blacklist = names: pkgs: removeDeps names (removePkgs names pkgs);
 
   importPackages = callPackage ./import-packages.nix {
     inherit importManifest isDepAttr;
