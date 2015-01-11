@@ -10093,6 +10093,8 @@ let
     boost = boost155;
   };
 
+  kdeApps_14_12 = callPackage ../applications/kde-apps-14.12 {};
+
   keepnote = callPackage ../applications/office/keepnote {
     pygtk = pyGtkGlade;
   };

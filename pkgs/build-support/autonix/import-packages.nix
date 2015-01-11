@@ -14,12 +14,13 @@ path: { mirror }:
 let
   manifest = importManifest (path + "/manifest.nix") { inherit mirror; };
   deps = import (path + "/dependencies.nix") {};
-  mkPkg = pkg: pkgManifest: {
-    name = nameFromURL pkgManifest.name ".tar";
-    src = fetchurl { inherit (pkgManifest) sha256 name url; };
-    inherit (deps."${pkg}")
-      buildInputs nativeBuildInputs propagatedBuildInputs
-      propagatedNativeBuildInputs propagatedUserEnvPkgs;
-  };
+  mkPkg = pkg: pkgManifest:
+    {
+      name = nameFromURL pkgManifest.name ".tar";
+      src = fetchurl { inherit (pkgManifest) sha256 name url; };
+      inherit (deps."${pkg}")
+        buildInputs nativeBuildInputs propagatedBuildInputs
+        propagatedNativeBuildInputs propagatedUserEnvPkgs;
+    };
 in
   breakRecursion (mapAttrs mkPkg manifest)

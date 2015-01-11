@@ -20,7 +20,7 @@ let
     map (name: bestVersion (versionsOf manifest name)) (uniqueNames manifest);
 
   manifestWithNames = manifest:
-    builtins.listToAttrs (map (p: nameValuePair (pkgAttrName p) p) manifest);
+    builtins.listToAttrs (map (p: nameValuePair (toLower (pkgAttrName p)) p) manifest);
 in
 
 path: { mirror }:
