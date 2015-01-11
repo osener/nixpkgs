@@ -1,23 +1,42 @@
-{ stdenv, newScope, callAutonixPackage, mkDerivation, isDepAttr }:
+{ stdenv, defaultDeriver, defaultFetcher, importPackages }:
 
 with stdenv.lib;
 
-let
-
-  oneList = x: if builtins.isList x then x else [x];
-
-  # Resolve inputs, turning a list of dependency names into a list of
-  # derivations. 'collection' is the set of packages in the current collection,
-  # 'extra' is the set of extra inputs, and 'names' is a set of name->dependency
-  # mappings. Names are resolved first from 'names', then from 'extra' and
-  # finally from 'collection'.
-  resolveInputs = collection: extra: names: inputs:
-    let resolveInOrder = input: oneList
-          (names."${input}" or extra."${input}" or collection."${input}" or []);
-    in concatMap resolveInOrder inputs;
-in
 dir:
 
+{ repackager ? id
+, rewriter ? (attr: pkg: pkg) # attr: pkg: newPkg
+, fetcher ? defaultFetcher # attr: pkg: fetchurl {...}
+, resolver # attr: pkg: dep: [ <dependencies> ]
+, overrider ? (name: attrs: attrs) # name: attrs: newAttrs
+, deriver ? defaultDeriver # name: attrs: <derivation>
+, mirror
+}:
+
+let
+  applyDeriver = mapAttrs deriver;
+  applyRewriter = mapAttrs rewriter;
+  applyFetcher = mapAttrs (attr: pkg: pkg // { src = fetcher attr pkg; });
+  applyResolver = mapAttrs (attr: pkg: pkg // {
+    buildInputs = concatMap (resolver attr pkg) pkg.buildInputs;
+    nativeBuildInputs = concatMap (resolver attr pkg) pkg.nativeBuildInputs;
+    propagatedBuildInputs = concatMap (resolver attr pkg) pkg.propagatedBuildInputs;
+    propagatedNativeBuildInputs = concatMap (resolver attr pkg) pkg.propagatedNativeBuildInputs;
+    propagatedUserEnvPkgs = concatMap (resolver attr pkg) pkg.propagatedUserEnvPkgs;
+  });
+  applyOverrider = mapAttrs overrider;
+  packages = importPackages dir { inherit mirror; };
+in
+fold (f: x: f x) packages
+  [ applyDeriver
+    applyOverrider
+    applyResolver
+    applyFetcher
+    applyRewriter
+    repackager
+  ]
+
+/*
 { names
   # 'names' maps dependency strings to derivations. It is a set of the form:
   # {
@@ -97,3 +116,4 @@ let
     in mapAttrs callPkg packagesWithInputs;
 in
   collection // extraOut
+*/

@@ -1,113 +1,144 @@
-{ autonix, haskellPackages, kde4, kf55, pkgs, qt4, stdenv
+{ autonix, haskellPackages, kf55, pkgs, stdenv
 , debug ? false }:
 
 with stdenv.lib; with autonix;
 
 let
 
-  isQt45Pkg = pkg: hasDep "qt4" pkg && hasDep "qt5" pkg;
+  plasma5 = generateCollection ./. {
+    mirror = "mirror://kde";
+    inherit overrider repackager resolver rewriter;
+    deriver = name: stdenv.mkDerivation;
+  };
+
+  qt5Deps = [ "qt5" ] ++ attrNames kf5;
+  qt4Deps = [ "kde4" "qt4" ];
   mkQt4Pkg = pkg:
-    let qt5Deps = [ "qt5" ] ++ attrNames kf5 ++ attrNames plasma5;
-        name = builtins.parseDrvName pkg.name;
+    let name = builtins.parseDrvName pkg.name;
     in (removePkgDeps qt5Deps pkg) // {
       name = name.name + "-qt4-" + name.version;
     };
   mkQt5Pkg = pkg:
-    let qt4Deps = [ "qt4" ];
-        name = builtins.parseDrvName pkg.name;
+    let name = builtins.parseDrvName pkg.name;
     in (removePkgDeps qt4Deps pkg) // {
       name = name.name + "-qt5-" + name.version;
     };
-  splitQt45Pkgs = pkgs:
-    let pkgNames = attrNames pkgs;
-        go = name: set:
-          let pkg = pkgs."${name}"; in
-          if !(isQt45Pkg pkg)
-            then set // { "${name}" = pkg; }
-            else set // {
-              "${name}-qt4" = mkQt4Pkg pkg;
-              "${name}-qt5" = mkQt5Pkg pkg;
-            };
-    in fold go {} pkgNames;
-
   splitBreeze = pkgs: (removeAttr "breeze" pkgs) // {
     breeze-qt4 = mkQt4Pkg pkgs.breeze;
     breeze-qt5 = mkQt5Pkg pkgs.breeze;
   };
 
-  packages =
-    fold (f: x: f x)
-      (importPackages ./. { mirror = "mirror://kde"; })
-      [ splitBreeze
-        splitQt45Pkgs
-        (removeDeps [ "kf5" "kde4" ])
-        (blacklist [ "kwayland" ])
-        (pkgs: pkgs // { plasma-desktop = removePkgDeps [ "qt4" ] pkgs.plasma-desktop; })
-        (pkgs: pkgs // { libmm-qt = removePkgDeps [ "qt4" ] pkgs.libmm-qt; })
-        (pkgs: pkgs // { libnm-qt = removePkgDeps [ "qt4" ] pkgs.libnm-qt; })
-      ];
+  repackager = pkgs: fold (f: x: f x) pkgs
+    [ splitBreeze
+      (blacklist ["kwayland"])
+    ];
+
+  renameDeps = nameMap: pkg:
+    let lookupNames = map (name: nameMap."${name}" or name);
+    in pkg // {
+      buildInputs = lookupNames pkg.buildInputs;
+      nativeBuildInputs = lookupNames pkg.nativeBuildInputs;
+      propagatedBuildInputs = lookupNames pkg.propagatedBuildInputs;
+      propagatedNativeBuildInputs = lookupNames pkg.propagatedNativeBuildInputs;
+      propagatedUserEnvPkgs = lookupNames pkg.propagatedUserEnvPkgs;
+    };
+
+  rewriter = name: pkg:
+    renameDeps
+      {
+        fontforge_executable = "fontforge";
+      }
+      (
+        {
+          libmm-qt = removePkgDeps qt4Deps pkg;
+          libnm-qt = removePkgDeps qt4Deps pkg;
+        }."${name}" or pkg
+      );
 
   kf5 = kf55.override { inherit debug; };
-  inherit (kf5) qt5;
+  scope = kf5.passthru.scope // plasma5;
 
-  extraInputs = kf5 // { inherit kde4; };
+  resolver = name: pkg: dep:
+    if dep == "kde4"
+      then [scope.kde4.kdelibs]
+    else optional (hasAttr dep scope) scope."${dep}";
 
-  extraOutputs = {
-    inherit kf5 qt5;
-    poppler_qt5 = (pkgs.poppler.override { inherit qt5; }).poppler_qt5;
-    startkde = plasma5.dev.callPackage ./startkde {};
-  };
+  overrider = name: attrs:
+    (mergeAttrsByFuncDefaultsClean
+      [
+        attrs
 
-  names = with pkgs; with extraOutputs; kf5.dev.names // {
-    inherit epoxy;
-    epub = ebook_tools;
-    inherit exiv2 ffmpeg fontconfig;
-    fontforge_executable = fontforge;
-    inherit freetype;
-    gio = glib;
-    glib2 = glib;
-    inherit ibus;
-    mobilebroadbandproviderinfo = mobile_broadband_provider_info;
-    inherit modemmanager networkmanager openconnect pciutils;
-    popplerqt5 = poppler_qt5;
-    inherit (kf5) prison;
-    inherit pulseaudio;
-    raw1394 = libraw1394;
-    sensors = lm_sensors;
-    inherit taglib;
-    usb = libusb;
-    inherit xapian;
-  };
+        {
+          setupHook = ./setup-hook.sh;
 
-  overrides = {
-    breeze-qt4 = {
-      buildInputs = [ pkgs.xlibs.xproto kde4.kdelibs qt4 ];
-      nativeBuildInputs = with pkgs; [ cmake pkgconfig ];
-      cmakeFlags = [ "-DUSE_KDE4=ON" ];
-    };
-    frameworkintegration = {
-      buildInputs = [ plasma5.oxygen-fonts ];
-    };
-    kwin = {
-      buildInputs = with pkgs.xlibs; [ libICE libSM libXcursor ];
-    };
-    libkscreen = {
-      buildInputs = with pkgs.xlibs; [ libXrandr ];
-    };
-    plasma-desktop = {
-      buildInputs = with pkgs.xlibs; [ pkgs.libcanberra libxkbfile libXcursor ];
-    };
-    plasma-workspace = {
-      buildInputs = with pkgs.xlibs; [ libSM libXcursor pkgs.pam ];
-    };
-    powerdevil = {
-      buildInputs = with pkgs.xlibs; [ libXrandr ];
-    };
-  };
+          enableParallelBuilding = true;
+          cmakeFlags =
+            [ "-DBUILD_TESTING=OFF"
+              "-DKDE_DEFAULT_HOME=.kde5"
+              "-DKDE4_DEFAULT_HOME=.kde"
+            ]
+            ++ optional debug "-DCMAKE_BUILD_TYPE=Debug";
 
-  plasma5 = autonix.generateCollection ./. {
-    inherit packages extraInputs extraOutputs names overrides;
-    deriver = kf5.dev.mkDerivation;
-  };
+          meta =
+          {
+            license = with stdenv.lib.licenses; [
+              lgpl21Plus lgpl3Plus bsd2 mit gpl2Plus gpl3Plus fdl12
+            ];
+            platforms = stdenv.lib.platforms.linux;
+            maintainers = with stdenv.lib.maintainers; [ ttuegel ];
+            homepage = "http://www.kde.org";
+          };
+        }
 
-in plasma5
+        (packageSoftOverrides."${name}" or {})
+      ]
+    ) // (packageHardOverrides."${name}" or {});
+
+  packageSoftOverrides = with scope;
+    {
+      breeze-qt4 = {
+        buildInputs = [ xlibs.xproto kde4.kdelibs qt4 ];
+        nativeBuildInputs = [ cmake pkgconfig ];
+        cmakeFlags = [ "-DUSE_KDE4=ON" ];
+      };
+      frameworkintegration = {
+        buildInputs = [ plasma5.oxygen-fonts ];
+      };
+      kwin = {
+        buildInputs = with xlibs; [ libICE libSM libXcursor ];
+        patches = [ ./kwin/kwin-import-plugin-follow-symlinks.patch ];
+      };
+      libkscreen = {
+        buildInputs = with xlibs; [ libXrandr ];
+        patches = [ ./libkscreen/libkscreen-backend-path.patch ];
+      };
+      plasma-desktop = {
+        buildInputs = with xlibs; [ pkgs.libcanberra libxkbfile libXcursor ];
+        patches = [
+          ./plasma-desktop/plasma-desktop-hwclock.patch
+          ./plasma-desktop/plasma-desktop-zoneinfo.patch
+        ];
+        preConfigure = ''
+          substituteInPlace kcms/dateandtime/helper.cpp \
+            --subst-var-by hwclock "${utillinux}/sbin/hwclock"
+        '';
+      };
+      plasma-workspace = {
+        buildInputs = with xlibs; [ libSM libXcursor pkgs.pam ];
+        postInstall = ''
+          # We use a custom startkde script
+          rm $out/bin/startkde
+        '';
+      };
+      powerdevil = {
+        buildInputs = with xlibs; [ libXrandr ];
+      };
+    };
+
+  packageHardOverrides = {};
+
+in plasma5 // {
+  inherit kf5;
+  passthru = { inherit scope; };
+  startkde = scope.newScope scope ./startkde {};
+}

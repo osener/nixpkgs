@@ -17,7 +17,7 @@ let
   mkPkg = pkg: pkgManifest:
     {
       name = nameFromURL pkgManifest.name ".tar";
-      src = fetchurl { inherit (pkgManifest) sha256 name url; };
+      src = { inherit (pkgManifest) sha256 name url; };
       inherit (deps."${pkg}")
         buildInputs nativeBuildInputs propagatedBuildInputs
         propagatedNativeBuildInputs propagatedUserEnvPkgs;

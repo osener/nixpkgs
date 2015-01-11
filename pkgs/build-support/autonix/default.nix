@@ -68,6 +68,14 @@ let
         allDeps = concatLists depAttrs;
     in elem dep allDeps;
 
+  importPackages = callPackage ./import-packages.nix {
+    inherit importManifest isDepAttr;
+  };
+
+  defaultFetcher = callPackage ./default-fetcher.nix {};
+
+  defaultDeriver = callPackage ./default-deriver.nix {};
+
 in
 {
   inherit pkgNameVersion pkgAttrName;
@@ -77,16 +85,13 @@ in
   inherit mkDerivation;
   inherit depAttrNames isDepAttr hasDep;
   inherit removePkgDeps removeDeps removePkgs;
+  inherit importPackages;
 
   writeManifestXML = callPackage ./write-manifest-xml.nix {
     inherit importManifest;
   };
 
   blacklist = names: pkgs: removeDeps names (removePkgs names pkgs);
-
-  importPackages = callPackage ./import-packages.nix {
-    inherit importManifest isDepAttr;
-  };
 
   emptyDeps = {
     buildInputs = [];
@@ -97,6 +102,7 @@ in
   };
 
   generateCollection = callPackage ./generate-collection.nix {
-    inherit callAutonixPackage mkDerivation isDepAttr;
+    inherit defaultDeriver defaultFetcher importPackages;
   };
+
 }

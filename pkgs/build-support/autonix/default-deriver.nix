@@ -1,0 +1,3 @@
+{ stdenv }:
+
+name: stdenv.mkDerivation

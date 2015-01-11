@@ -105,8 +105,8 @@ in
       [
         # Plasma packages
         baloo
-        breeze
-        breeze_qt4
+        breeze-qt4
+        breeze-qt5
         kde-cli-tools
         kdeplasma-addons
         kfilemetadata
@@ -128,7 +128,7 @@ in
         plasma-workspace
         plasma-workspace-wallpapers
         powerdevil
-        qt5
+        passthru.scope.qt5
         pkgs.qt4 # qtconfig is the only way to set the theme for Qt 4 programs
         systemsettings
 

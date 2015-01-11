@@ -3962,6 +3962,18 @@ let
       inherit stdenv gcc binutils libc shell name cross;
     });
 
+  wrapGCCStdInc = glibc: baseGCC: (import ../build-support/gcc-wrapper) {
+    nativeTools = stdenv.cc.nativeTools or false;
+    nativeLibc = stdenv.cc.nativeLibc or false;
+    nativePrefix = stdenv.cc.nativePrefix or "";
+    gcc = baseGCC;
+    libc = glibc;
+    inherit stdenv binutils coreutils zlib;
+    setupHook = ../build-support/gcc-wrapper/setup-hook-stdinc.sh;
+  };
+
+  gccStdInc = wrapGCCStdInc glibc gcc.gcc;
+
   # prolog
   yap = callPackage ../development/compilers/yap { };
 
@@ -5644,7 +5656,9 @@ let
     automake = automake111x;
   };
 
-  kf55 = recurseIntoAttrs (callPackage ../development/libraries/kde-frameworks-5.5 {});
+  kf55 = recurseIntoAttrs (callPackage ../development/libraries/kde-frameworks-5.5 {
+    stdenv = overrideGCC stdenv gccStdInc;
+  });
   kf5_latest = kf55;
 
   krb5 = callPackage ../development/libraries/kerberos/krb5.nix {
