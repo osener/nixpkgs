@@ -33,23 +33,22 @@ let
       (blacklist ["kwayland"])
     ];
 
-  renameDeps = nameMap: pkg:
-    let lookupNames = map (name: nameMap."${name}" or name);
-    in pkg // {
-      buildInputs = lookupNames pkg.buildInputs;
-      nativeBuildInputs = lookupNames pkg.nativeBuildInputs;
-      propagatedBuildInputs = lookupNames pkg.propagatedBuildInputs;
-      propagatedNativeBuildInputs = lookupNames pkg.propagatedNativeBuildInputs;
-      propagatedUserEnvPkgs = lookupNames pkg.propagatedUserEnvPkgs;
-    };
-
   rewriter = name: pkg:
     renameDeps
       {
+        kde4 = "kdelibs";
         fontforge_executable = "fontforge";
       }
       (
         {
+          # breeze-qt4 cannot handle being built with any Qt 5 bits around
+          breeze-qt4 = pkg // {
+            buildInputs = [];
+            nativeBuildInputs = [];
+            propagatedBuildInputs = [];
+            propagatedNativeBuildInputs = [];
+            propagatedUserEnvPkgs = [];
+          };
           libmm-qt = removePkgDeps qt4Deps pkg;
           libnm-qt = removePkgDeps qt4Deps pkg;
         }."${name}" or pkg
@@ -58,10 +57,7 @@ let
   kf5 = kf55.override { inherit debug; };
   scope = kf5.passthru.scope // plasma5;
 
-  resolver = name: pkg: dep:
-    if dep == "kde4"
-      then [scope.kde4.kdelibs]
-    else optional (hasAttr dep scope) scope."${dep}";
+  resolver = name: pkg: dep: optional (hasAttr dep scope) scope."${dep}";
 
   overrider = name: attrs:
     (mergeAttrsByFuncDefaultsClean
@@ -99,7 +95,7 @@ let
       breeze-qt4 = {
         buildInputs = [ xlibs.xproto kde4.kdelibs qt4 ];
         nativeBuildInputs = [ cmake pkgconfig ];
-        cmakeFlags = [ "-DUSE_KDE4=ON" ];
+        cmakeFlags = [ "-DUSE_KDE4=ON" "-DQT_QMAKE_EXECUTABLE=${qt4}/bin/qmake" ];
       };
       frameworkintegration = {
         buildInputs = [ plasma5.oxygen-fonts ];

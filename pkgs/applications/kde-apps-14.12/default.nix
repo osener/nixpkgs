@@ -5,72 +5,133 @@ with stdenv.lib; with autonix;
 
 let
 
-  isQt45Pkg = pkg: hasAnyDeps pkg qt4Deps && hasAnyDeps pkg qt5Deps;
-  hasAnyDeps = pkg: any (dep: hasDep dep pkg);
+  kdeApps = generateCollection ./. {
+    mirror = "mirror://kde";
+    inherit overrider repackager resolver rewriter;
+    deriver = name: stdenv.mkDerivation;
+  };
+
+  repackager = pkgs: fold (f: x: f x) pkgs
+    [ (blacklist ["artikulate"]) # build failure, wrong boost?
+      (blacklist ["cantor"]) # link failure, Qt version mismatch?
+      (blacklist [ "kde-dev-scripts" "kde-dev-utils" ]) # docbook errors
+      (blacklist ["kdewebdev"]) # unknown build failure
+    ];
+
   qt5Deps = [ "qt5" ] ++ attrNames kf5;
+  qt4Only = removePkgDeps qt5Deps;
+
   qt4Deps = [ "kde4" "qt4" ];
-  mkQt4Pkg = pkg:
-    let name = builtins.parseDrvName pkg.name;
-    in (removePkgDeps qt5Deps pkg) // {
-      name = name.name + "-qt4-" + name.version;
-    };
-  mkQt5Pkg = pkg:
-    let name = builtins.parseDrvName pkg.name;
-    in (removePkgDeps qt4Deps pkg) // {
-      name = name.name + "-qt5-" + name.version;
-    };
-  splitQt45Pkgs = pkgs:
-    let pkgNames = attrNames pkgs;
-        go = name: set:
-          let pkg = pkgs."${name}"; in
-          if !(isQt45Pkg pkg)
-            then set // { "${name}" = pkg; }
-            else set // {
-              "${name}-qt4" = mkQt4Pkg pkg;
-              "${name}-qt5" = mkQt5Pkg pkg;
-            };
-    in fold go {} pkgNames;
+  isQt4Pkg = pkg: any (dep: hasDep dep pkg) qt4Deps;
+  qt5Only = removePkgDeps qt4Deps;
 
-  qt5Only = tgt: mapAttrs (pkg: if tgt == pkg then removePkgDeps qt4Deps else id);
-  qt4Only = tgt: mapAttrs (pkg: if tgt == pkg then removePkgDeps qt5Deps else id);
+  rewriter = name: pkg:
+    fold (f: x: f x) pkg
+      [
+        (renameDeps
+          {
+            canberra = "libcanberra";
+            eigen3 = "eigen";
+            gphoto2 = "libgphoto2";
+            kde4 = "kdelibs";
+            kde4workspace = "kde_workspace";
+            musicbrainz3 = "libmusicbrainz";
+            poppler = "popplerQt4";
+            qtgstreamer = "qt_gstreamer";
+            libattica = "attica";
+            libkonq = "kde-baseapps";
+            sndfile = "libsndfile";
+            telepathyqt4 = "telepathy_qt";
+          }
+        )
 
-  packages =
-    fold (f: x: f x)
-      (importPackages ./. { mirror = "mirror://kde"; })
-      [ splitQt45Pkgs
-        (removeDeps [ "kf5" ])
-        (qt5Only "kapptemplate")
-        (qt4Only "kbreakout")
-        (qt4Only "artikulate")
-        (qt4Only "kde-baseapps")
-        (blacklist [ "jovie" "kde-dev-scripts" "kde-dev-utils" ])
+        (pkg: if isQt4Pkg pkg
+          then pkg // { cmakeFlags = [ "-DQT_QMAKE_EXECUTABLE=${qt4}/bin/qmake" ]; }
+          else pkg
+        )
+
+        (pkg:
+          {
+            kde-baseapps = qt4Only pkg;
+            kde-runtime = qt4Only pkg;
+            kmix = qt4Only pkg;
+            okular = qt4Only pkg;
+          }."${name}" or pkg
+        )
       ];
 
   kf5 = kf55.override { inherit debug; };
-  inherit (kf5) qt5;
+  inherit kde4;
+  scope =
+      kf5.passthru.scope
+    // { inherit (kde4) kde_workspace kdelibs kdepimlibs; }
+    // kdeApps;
 
-  extraInputs = kf5 // { inherit kde4; };
+  resolver = name: pkg: dep: optional (hasAttr dep scope) scope."${dep}";
 
-  extraOutputs = {
-  };
+  overrider = name: attrs:
+    (mergeAttrsByFuncDefaultsClean
+      [
+        attrs
 
-  names = with pkgs; with extraOutputs; kf5.dev.names // {
-    inherit exiv2 ffmpeg gettext gmp lcms2 taglib;
-    inherit (kde4) libkdegames;
-    gphoto2 = libgphoto2;
-    kde4 = kde4.kdelibs;
-    libkonq = kdeApps.kde-baseapps;
-    qtgstreamer = qt_gstreamer1;
-  };
+        {
+          setupHook = ./setup-hook.sh;
 
-  overrides = with pkgs; {
+          enableParallelBuilding = true;
+          cmakeFlags =
+            [ "-DBUILD_TESTING=OFF"
+              "-DKDE_DEFAULT_HOME=.kde5"
+              "-DKDE4_DEFAULT_HOME=.kde"
+            ]
+            ++ optional debug "-DCMAKE_BUILD_TYPE=Debug";
+
+          meta =
+          {
+            license = with stdenv.lib.licenses; [
+              lgpl21Plus lgpl3Plus bsd2 mit gpl2Plus gpl3Plus fdl12
+            ];
+            platforms = stdenv.lib.platforms.linux;
+            maintainers = with stdenv.lib.maintainers; [ ttuegel ];
+            homepage = "http://www.kde.org";
+          };
+        }
+
+        (packageSoftOverrides."${name}" or {})
+      ]
+    ) // (packageHardOverrides."${name}" or {});
+
+  packageSoftOverrides = with scope; {
     ffmpegthumbs = { nativeBuildInputs = [ pkgconfig ]; };
     kalzium = { nativeBuildInputs = [ pkgconfig ]; };
+    kde-runtime = {
+      buildInputs = [ kde4.kactivities pkgs.attica ];
+      NIX_CFLAGS_COMPILE = "-I${ilmbase}/include/OpenEXR";
+    };
+    kdesdk-thumbnailers = { nativeBuildInputs = [ gettext ]; };
+    kgpg = { buildInputs = [ boost ]; };
+    kmix = { nativeBuildInputs = [ pkgconfig ]; };
+    kmousetool = { buildInputs = [ xlibs.libXtst xlibs.libXt ]; };
+    kremotecontrol = { buildInputs = [ xlibs.libXtst ]; };
+    krfb = {
+      buildInputs = with kde4.telepathy; [
+        xlibs.libXtst common_internals
+      ];
+    };
+    libkdcraw = {
+      buildInputs = [ kdelibs libraw ];
+      nativeBuildInputs = [ pkgconfig ];
+    };
+    libkexiv2 = {
+      buildInputs = [ exiv2 kdelibs ];
+    };
+    libkface = { buildInputs = [ kdelibs opencv ]; };
+    libkipi = { buildInputs = [ kdelibs ]; };
+    libksane = { buildInputs = [ kdelibs saneBackends ]; };
+    okular = {
+      buildInputs = [ ebook_tools kde4.kactivities ];
+    };
   };
 
-  kdeApps = autonix.generateCollection ./. {
-    inherit packages extraInputs extraOutputs names overrides;
-    deriver = kf5.dev.mkDerivation;
-  };
+  packageHardOverrides = {};
 
 in kdeApps

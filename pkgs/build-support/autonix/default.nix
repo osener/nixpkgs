@@ -105,4 +105,14 @@ in
     inherit defaultDeriver defaultFetcher importPackages;
   };
 
+  renameDeps = nameMap: pkg:
+    let lookupNames = map (name: nameMap."${name}" or name);
+    in pkg // {
+      buildInputs = lookupNames pkg.buildInputs;
+      nativeBuildInputs = lookupNames pkg.nativeBuildInputs;
+      propagatedBuildInputs = lookupNames pkg.propagatedBuildInputs;
+      propagatedNativeBuildInputs = lookupNames pkg.propagatedNativeBuildInputs;
+      propagatedUserEnvPkgs = lookupNames pkg.propagatedUserEnvPkgs;
+    };
+
 }

@@ -10237,7 +10237,9 @@ let
     boost = boost155;
   };
 
-  kdeApps_14_12 = callPackage ../applications/kde-apps-14.12 {};
+  kdeApps_14_12 = recurseIntoAttrs (callPackage ../applications/kde-apps-14.12 {
+    stdenv = overrideGCC stdenv gccStdInc;
+  });
 
   keepnote = callPackage ../applications/office/keepnote {
     pygtk = pyGtkGlade;
@@ -12310,7 +12312,9 @@ let
   mate-themes = callPackage ../misc/themes/mate-themes { };
 
   plasma5_latest = plasma51;
-  plasma51 = recurseIntoAttrs (callPackage ../desktops/plasma-5.1 {});
+  plasma51 = recurseIntoAttrs (callPackage ../desktops/plasma-5.1 {
+    stdenv = overrideGCC stdenv gccStdInc;
+  });
 
   xfce = xfce4_10;
   xfce4_10 = recurseIntoAttrs (import ../desktops/xfce { inherit config pkgs newScope; });
