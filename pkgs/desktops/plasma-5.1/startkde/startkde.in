@@ -289,6 +289,11 @@ if test $? -ne 0; then
   exit 1
 fi
 
+# (NixOS) We run kbuildsycoca5 before starting the user session because things
+# may be missing or moved if they have run nixos-rebuild and it may not be
+# possible for them to start Konsole to run it manually!
+@kservice@/bin/kbuildsycoca5
+
 # finally, give the session control to the session manager
 # see kdebase/ksmserver for the description of the rest of the startup sequence
 # if the KDEWM environment variable has been set, then it will be used as KDE's

@@ -1,4 +1,4 @@
-{ stdenv, bash, dbus, gnused, gnugrep, kconfig, kinit, plasma-desktop
+{ stdenv, bash, dbus, gnused, gnugrep, kconfig, kinit, kservice, plasma-desktop
 , plasma-workspace, qt5, socat, xorg }:
 
 let startkde = ./startkde.in; in
@@ -7,7 +7,7 @@ stdenv.mkDerivation {
   name = "startkde-0.1";
   phases = "installPhase";
 
-  inherit bash gnused gnugrep kconfig kinit qt5 socat;
+  inherit bash gnused gnugrep kconfig kinit kservice qt5 socat;
   inherit (xorg) mkfontdir xmessage xprop xrdb xset xsetroot;
   dbus_tools = dbus.tools;
   plasmaWorkspace = plasma-workspace;
