@@ -1213,9 +1213,8 @@ let
   flvtool2 = callPackage ../tools/video/flvtool2 { };
 
   fontforge = lowPrio (callPackage ../tools/misc/fontforge { });
-
-  fontforgeX = callPackage ../tools/misc/fontforge {
-    withX11 = true;
+  fontforge-gtk = callPackage ../tools/misc/fontforge {
+    withGTK = true;
   };
 
   forktty = callPackage ../os-specific/linux/forktty {};
@@ -1637,7 +1636,7 @@ let
   nodejs = callPackage ../development/web/nodejs { };
   nodejs-unstable = callPackage ../development/web/nodejs { unstableVersion = true; };
 
-  nodePackages = recurseIntoAttrs (import ./node-packages.nix {
+  nodePackages = recurseIntoAttrs (callPackage ./node-packages.nix {
     inherit pkgs stdenv nodejs fetchurl fetchgit;
     neededNatives = [python] ++ lib.optional (lib.elem system lib.platforms.linux) utillinux;
     self = pkgs.nodePackages;
@@ -7170,6 +7169,8 @@ let
   usbredir = callPackage ../development/libraries/usbredir {
     libusb = libusb1;
   };
+
+  uthash = callPackage ../development/libraries/uthash { };
 
   ucommon = callPackage ../development/libraries/ucommon { };
 
