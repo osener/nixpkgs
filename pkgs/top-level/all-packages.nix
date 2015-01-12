@@ -3950,6 +3950,10 @@ let
   sbcl = callPackage ../development/compilers/sbcl {
     clisp = clisp;
   };
+  # For StumpWM
+  sbcl_1_2_5 = callPackage ../development/compilers/sbcl/1.2.5.nix {
+    clisp = clisp;
+  };
   # For ACL2
   sbcl_1_2_0 = callPackage ../development/compilers/sbcl/1.2.0.nix {
     clisp = clisp;
@@ -6541,13 +6545,18 @@ let
   minmay = callPackage ../development/libraries/minmay { };
 
   miro = callPackage ../applications/video/miro {
-    inherit (pythonPackages) pywebkitgtk pysqlite pycurl mutagen;
+    inherit (pythonPackages) pywebkitgtk pycurl mutagen;
     avahi = avahi.override {
       withLibdnssdCompat = true;
     };
   };
 
   mkvtoolnix = callPackage ../applications/video/mkvtoolnix { };
+
+  mkvtoolnix-cli = mkvtoolnix.override {
+    withGUI = false;
+    wxGTK = null;
+  };
 
   mlt-qt4 = callPackage ../development/libraries/mlt {
     qt = qt4;
@@ -11018,6 +11027,8 @@ let
 
   stumpwm = callPackage ../applications/window-managers/stumpwm {
     stumpwmContrib = callPackage ../applications/window-managers/stumpwm/contrib.nix { };
+    sbcl = sbcl_1_2_5;
+    lispPackages = lispPackagesFor (wrapLisp sbcl_1_2_5);
   };
 
   sublime = callPackage ../applications/editors/sublime { };
