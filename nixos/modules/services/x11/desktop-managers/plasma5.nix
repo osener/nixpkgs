@@ -33,7 +33,9 @@ let
   phononBackendPackages = flip concatMap cfg.phononBackends
     (name: attrByPath [name] (throw "unknown phonon backend `${name}'") phononBackends);
 
-  plasma5 = pkgs.plasma5_latest;
+  plasma5 = pkgs.plasma51;
+
+  kdeApps = pkgs.kdeApps_14_12;
 
 in
 
@@ -188,10 +190,13 @@ in
         sonnet
         threadweaver
 
-        pkgs.kde4.kde_baseapps
-        pkgs.kde4.konsole
-        pkgs.kde4.oxygen_icons
+        kdeApps.kde-baseapps
+        kdeApps.konsole
+        kdeApps.oxygen-icons
+
         pkgs.hicolor_icon_theme
+
+        # GTK theme, nearly identical to Breeze
         pkgs.orion
       ]
       ++ (optional config.networking.networkmanager.enable plasma-nm)
