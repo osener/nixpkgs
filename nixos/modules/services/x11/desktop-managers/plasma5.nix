@@ -49,7 +49,7 @@ in
 
       phononBackends = mkOption {
         type = types.listOf types.str;
-        default = ["vlc"];
+        default = ["gstreamer"];
         example = ["gstreamer" "vlc"];
         description = ''
           Phonon backends to use in KDE. Only the VLC and gstreamer backends are
