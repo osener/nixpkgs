@@ -1550,6 +1550,8 @@ let
 
   ipmiutil = callPackage ../tools/system/ipmiutil {};
 
+  ipv6calc = callPackage ../tools/networking/ipv6calc {};
+
   ipxe = callPackage ../tools/misc/ipxe { };
 
   ised = callPackage ../tools/misc/ised {};
@@ -3711,6 +3713,8 @@ let
 
     cmdliner = callPackage ../development/ocaml-modules/cmdliner { };
 
+    config-file = callPackage ../development/ocaml-modules/config-file { };
+
     cppo = callPackage ../development/tools/ocaml/cppo { };
 
     cryptokit = callPackage ../development/ocaml-modules/cryptokit { };
@@ -3745,6 +3749,8 @@ let
 
     gmetadom = callPackage ../development/ocaml-modules/gmetadom { };
 
+    gtktop = callPackage ../development/ocaml-modules/gtktop { };
+
     js_of_ocaml = callPackage ../development/tools/ocaml/js_of_ocaml { };
 
     lablgl = callPackage ../development/ocaml-modules/lablgl { };
@@ -3755,6 +3761,11 @@ let
     lablgtk = callPackage ../development/ocaml-modules/lablgtk {
       inherit (gnome) libgnomecanvas libglade gtksourceview;
     };
+
+    lablgtk-extras =
+      if lib.versionOlder "4.02" ocaml_version
+      then callPackage ../development/ocaml-modules/lablgtk-extras { }
+      else callPackage ../development/ocaml-modules/lablgtk-extras/1.4.nix { };
 
     lablgtkmathview = callPackage ../development/ocaml-modules/lablgtkmathview {
       gtkmathview = callPackage ../development/libraries/gtkmathview { };
@@ -4634,6 +4645,8 @@ let
 
   flow = callPackage ../development/tools/analysis/flow { };
 
+  fswatch = callPackage ../development/tools/misc/fswatch { };
+
   pmd = callPackage ../development/tools/analysis/pmd { };
 
   jdepend = callPackage ../development/tools/analysis/jdepend { };
@@ -5339,6 +5352,7 @@ let
 
   gettext_0_17 = callPackage ../development/libraries/gettext/0.17.nix { };
   gettext_0_18 = callPackage ../development/libraries/gettext { };
+  gettext_0_19 = callPackage ../development/libraries/gettext/0.19.nix { };
 
   gd = callPackage ../development/libraries/gd { };
 
@@ -9747,6 +9761,8 @@ let
   emacs24Packages = recurseIntoAttrs (emacsPackages emacs24 pkgs.emacs24Packages);
 
   inherit (gnome3) empathy;
+
+  enhanced-ctorrent = callPackage ../applications/networking/enhanced-ctorrent { };
 
   epdfview = callPackage ../applications/misc/epdfview { };
 

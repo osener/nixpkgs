@@ -830,6 +830,8 @@ self : let callPackage = x : y : modifyPrio (newScope self x y); in
 
   eventList = callPackage ../development/libraries/haskell/event-list {};
 
+  exhaustive = callPackage ../development/libraries/haskell/exhaustive {};
+
   exPool = callPackage ../development/libraries/haskell/ex-pool {};
 
   exceptionMtl = callPackage ../development/libraries/haskell/exception-mtl {};
@@ -2335,6 +2337,8 @@ self : let callPackage = x : y : modifyPrio (newScope self x y); in
   simpleSqlParser = callPackage ../development/libraries/haskell/simple-sql-parser {};
 
   silently = callPackage ../development/libraries/haskell/silently {};
+
+  sitemap = callPackage ../development/libraries/haskell/sitemap {};
 
   sized = callPackage ../development/libraries/haskell/sized {};
 
